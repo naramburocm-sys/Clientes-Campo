@@ -4,272 +4,147 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Tonicol Campo - Registro Local de Clientes</title>
-  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- FontAwesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <!-- Chart.js para Dashboard -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- SheetJS para Excel -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-
   <script>
     tailwind.config = {
       theme: {
         extend: {
           colors: {
-            tonicol: {
-              yellow: '#F5B014',
-              darkYellow: '#D99600',
-              red: '#B81D24',
-              darkRed: '#8C1217',
-              amber: '#FDF6E2',
-              dark: '#231F20'
-            }
+            tonicol: { yellow: '#F5B014', darkYellow: '#D99600', red: '#B81D24', darkRed: '#8C1217', amber: '#FDF6E2', dark: '#231F20' }
           }
         }
       }
     }
   </script>
-  <style>
-    body {
-      background-color: #f7f5f0;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-      color: #231F20;
-    }
-    .custom-scrollbar::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-thumb {
-      background-color: #D99600;
-      border-radius: 4px;
-    }
-    /* Overlay para indicar cuando se arrastra un archivo */
-    #dropOverlay {
-      transition: opacity 0.2s ease-in-out;
-    }
-  </style>
 </head>
-<body class="min-h-screen flex flex-col custom-scrollbar relative">
+<body class="min-h-screen flex flex-col bg-[#f7f5f0] text-[#231F20] relative">
 
-  <!-- Superposición visual al arrastrar archivo Excel -->
-  <div id="dropOverlay" class="fixed inset-0 bg-tonicol-yellow/90 backdrop-blur-md z-50 hidden flex flex-col items-center justify-center border-8 border-dashed border-tonicol-red text-tonicol-dark pointer-events-none">
+  <!-- Superposición para Arrastrar Archivos (Oculto por defecto con pointer-events-none) -->
+  <div id="dropOverlay" class="fixed inset-0 bg-tonicol-yellow/90 backdrop-blur-md z-50 hidden pointer-events-none flex flex-col items-center justify-center border-8 border-dashed border-tonicol-red text-tonicol-dark">
     <i class="fas fa-file-excel text-7xl text-tonicol-red animate-bounce mb-4"></i>
     <h2 class="text-3xl font-black uppercase">Suelta aquí tu archivo Excel</h2>
-    <p class="text-base font-bold mt-2">Se actualizarán los clientes omitiendo duplicados automáticamente</p>
+    <p class="text-base font-bold mt-2">Se actualizarán los clientes sin duplicar</p>
   </div>
 
   <!-- Encabezado -->
   <header class="bg-tonicol-red text-white shadow-lg sticky top-0 z-40">
-    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-3">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center gap-3">
       <div class="flex items-center space-x-3">
-        <div class="w-10 h-10 rounded-full bg-tonicol-yellow text-tonicol-dark flex items-center justify-center font-black text-xl shadow-inner border-2 border-white">
-          T
-        </div>
+        <div class="w-10 h-10 rounded-full bg-tonicol-yellow text-tonicol-dark flex items-center justify-center font-black text-xl border-2 border-white">T</div>
         <div>
-          <h1 class="text-xl font-black tracking-wide leading-tight text-white">TONICOL <span class="text-tonicol-yellow font-normal text-sm block sm:inline sm:ml-2">| Control de Clientes en Campo</span></h1>
-          <p class="text-xs text-red-100 flex items-center gap-1">
-            <span class="w-2 h-2 rounded-full bg-green-400 inline-block"></span>
-            Modo Local Seguro (Sin datos en la nube)
-          </p>
+          <h1 class="text-xl font-black text-white">TONICOL <span class="text-tonicol-yellow font-normal text-sm">| Control de Campo</span></h1>
         </div>
       </div>
-
       <div class="flex items-center space-x-2">
-        <button onclick="abrirModalCliente()" class="bg-tonicol-yellow hover:bg-tonicol-darkYellow text-tonicol-dark font-bold px-4 py-2 rounded-xl text-sm shadow flex items-center transition-all transform active:scale-95">
-          <i class="fas fa-plus-circle mr-2 text-base"></i> Nuevo Cliente
+        <button id="btnNuevoCliente" type="button" class="bg-tonicol-yellow hover:bg-tonicol-darkYellow text-tonicol-dark font-bold px-4 py-2 rounded-xl text-sm shadow flex items-center cursor-pointer">
+          <i class="fas fa-plus-circle mr-2"></i> Nuevo Cliente
         </button>
-        <button onclick="exportarExcel()" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-3 py-2 rounded-xl text-sm shadow flex items-center transition-all">
-          <i class="fas fa-file-excel mr-1 sm:mr-2"></i> <span class="hidden sm:inline">Exportar</span>
+        <button onclick="exportarExcel()" type="button" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-3 py-2 rounded-xl text-sm shadow flex items-center cursor-pointer">
+          <i class="fas fa-file-excel mr-2"></i> Exportar
         </button>
       </div>
     </div>
   </header>
 
   <!-- Contenedor Principal -->
-  <main class="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6 space-y-6">
-
-    <!-- Zona Drag & Drop -->
-    <section class="bg-white rounded-2xl shadow-sm border border-amber-200 p-4 sm:p-5">
-      <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h2 class="text-lg font-bold text-tonicol-dark flex items-center gap-2">
-            <i class="fas fa-store text-tonicol-red"></i> Gestión Directa de Visitas
-          </h2>
-          <p class="text-xs sm:text-sm text-gray-600">Captura datos al instante, sincroniza coordenadas por GPS y mantén tu inventario de clientes al día.</p>
-        </div>
-        
-        <div id="dropZone" onclick="document.getElementById('excelInput').click()" class="w-full md:w-auto border-2 border-dashed border-tonicol-yellow hover:border-tonicol-red bg-tonicol-amber/50 hover:bg-amber-100 rounded-xl p-4 text-center cursor-pointer transition-all">
-          <input type="file" id="excelInput" accept=".xlsx, .xls" class="hidden" onchange="procesarArchivoExcel(event)">
-          <div class="flex items-center justify-center space-x-2 text-xs sm:text-sm font-semibold text-tonicol-dark">
-            <i class="fas fa-cloud-upload-alt text-tonicol-red text-xl"></i>
-            <span>Arrastra aquí tu archivo Excel (.xlsx) o haz clic para seleccionar</span>
-          </div>
-        </div>
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 space-y-6">
+    <section class="bg-white rounded-2xl shadow-sm border border-amber-200 p-5 flex flex-col md:flex-row justify-between items-center gap-4">
+      <div>
+        <h2 class="text-lg font-bold text-tonicol-dark"><i class="fas fa-store text-tonicol-red mr-2"></i>Gestión Directa de Visitas</h2>
+        <p class="text-xs text-gray-600">Captura datos al instante y sincroniza por GPS.</p>
       </div>
-    </section>
-
-    <!-- Filtros Dinámicos -->
-    <section class="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 space-y-3">
-      <div class="flex items-center justify-between">
-        <h3 class="text-sm font-extrabold uppercase tracking-wider text-tonicol-dark flex items-center gap-2">
-          <i class="fas fa-filter text-tonicol-yellow"></i> Filtros de Información
-        </h3>
-        <button onclick="limpiarFiltros()" class="text-xs text-tonicol-red hover:underline font-semibold flex items-center gap-1">
-          <i class="fas fa-undo"></i> Limpiar Filtros
-        </button>
-      </div>
-        
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <div>
-          <label class="block text-xs font-bold text-gray-700 mb-1">Ruta</label>
-          <select id="filtroRuta" onchange="aplicarFiltros()" class="w-full text-xs sm:text-sm border-gray-300 rounded-lg p-2.5 bg-gray-50 focus:ring-2 focus:ring-tonicol-yellow">
-            <option value="">Todas las rutas</option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-xs font-bold text-gray-700 mb-1">Colonia</label>
-          <select id="filtroColonia" onchange="aplicarFiltros()" class="w-full text-xs sm:text-sm border-gray-300 rounded-lg p-2.5 bg-gray-50 focus:ring-2 focus:ring-tonicol-yellow">
-            <option value="">Todas las colonias</option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-xs font-bold text-gray-700 mb-1">Giro</label>
-          <select id="filtroGiro" onchange="aplicarFiltros()" class="w-full text-xs sm:text-sm border-gray-300 rounded-lg p-2.5 bg-gray-50 focus:ring-2 focus:ring-tonicol-yellow">
-            <option value="">Todos los giros</option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-xs font-bold text-gray-700 mb-1">Formato</label>
-          <select id="filtroFormato" onchange="aplicarFiltros()" class="w-full text-xs sm:text-sm border-gray-300 rounded-lg p-2.5 bg-gray-50 focus:ring-2 focus:ring-tonicol-yellow">
-            <option value="">Todos los formatos</option>
-          </select>
-        </div>
-      </div>
-    </section>
-
-    <!-- KPIs -->
-    <section class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-      <div class="bg-white rounded-2xl p-4 shadow-sm border-l-4 border-tonicol-red flex items-center justify-between">
-        <div>
-          <p class="text-xs text-gray-500 uppercase font-bold">Total Clientes</p>
-          <p id="kpiTotalClientes" class="text-2xl font-black text-tonicol-dark">0</p>
-        </div>
-        <div class="w-10 h-10 rounded-full bg-red-100 text-tonicol-red flex items-center justify-center font-bold">
-          <i class="fas fa-users"></i>
-        </div>
-      </div>
-
-      <div class="bg-white rounded-2xl p-4 shadow-sm border-l-4 border-tonicol-yellow flex items-center justify-between">
-        <div>
-          <p class="text-xs text-gray-500 uppercase font-bold">Rutas Activas</p>
-          <p id="kpiRutasActivas" class="text-2xl font-black text-tonicol-dark">0</p>
-        </div>
-        <div class="w-10 h-10 rounded-full bg-amber-100 text-tonicol-darkYellow flex items-center justify-center font-bold">
-          <i class="fas fa-route"></i>
-        </div>
-      </div>
-
-      <div class="bg-white rounded-2xl p-4 shadow-sm border-l-4 border-emerald-600 flex items-center justify-between">
-        <div>
-          <p class="text-xs text-gray-500 uppercase font-bold">Giro Principal</p>
-          <p id="kpiGiroPrincipal" class="text-sm font-black text-tonicol-dark truncate max-w-[120px] sm:max-w-none">-</p>
-        </div>
-        <div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
-          <i class="fas fa-chart-pie"></i>
-        </div>
-      </div>
-
-      <div class="bg-white rounded-2xl p-4 shadow-sm border-l-4 border-blue-600 flex items-center justify-between">
-        <div>
-          <p class="text-xs text-gray-500 uppercase font-bold">Día de Pico</p>
-          <p id="kpiDiaPico" class="text-base font-black text-tonicol-dark">-</p>
-        </div>
-        <div class="w-10 h-10 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold">
-          <i class="fas fa-calendar-day"></i>
-        </div>
-      </div>
-    </section>
-
-    <!-- Gráficos -->
-    <section class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-200">
-        <h4 class="text-xs font-extrabold uppercase text-gray-600 mb-3 flex items-center gap-2">
-          <i class="fas fa-chart-bar text-tonicol-red"></i> Clientes por Día de Visita
-        </h4>
-        <div class="h-56 relative">
-          <canvas id="chartDias"></canvas>
-        </div>
-      </div>
-
-      <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-200">
-        <h4 class="text-xs font-extrabold uppercase text-gray-600 mb-3 flex items-center gap-2">
-          <i class="fas fa-chart-pie text-tonicol-yellow"></i> Distribución por Giro Comercial
-        </h4>
-        <div class="h-56 relative flex items-center justify-center">
-          <canvas id="chartGiros"></canvas>
+      
+      <!-- Zona Drop Target -->
+      <div id="dropZone" class="w-full md:w-auto border-2 border-dashed border-tonicol-yellow hover:border-tonicol-red bg-tonicol-amber/50 rounded-xl p-4 text-center cursor-pointer">
+        <input type="file" id="excelInput" accept=".xlsx, .xls" class="hidden">
+        <div class="flex items-center justify-center space-x-2 text-xs font-semibold text-tonicol-dark pointer-events-none">
+          <i class="fas fa-cloud-upload-alt text-tonicol-red text-xl"></i>
+          <span>Arrastra archivo Excel (.xlsx) o haz clic para cargar</span>
         </div>
       </div>
     </section>
 
     <!-- Tabla -->
     <section class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-      <div class="p-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-3">
-        <div class="relative w-full sm:w-72">
-          <i class="fas fa-search absolute left-3 top-3 text-gray-400 text-xs"></i>
-          <input type="text" id="inputBuscador" onkeyup="aplicarFiltros()" placeholder="Buscar cliente, colonia, tel..." class="w-full pl-8 pr-3 py-2 text-xs sm:text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-tonicol-yellow">
-        </div>
-        <div class="text-xs text-gray-500 font-medium">
-          Mostrando <span id="cantFiltrados" class="font-bold text-tonicol-dark">0</span> clientes
-        </div>
-      </div>
-
       <div class="overflow-x-auto">
-        <table class="w-full text-left border-collapse">
+        <table class="w-full text-left border-collapse text-xs sm:text-sm">
           <thead>
-            <tr class="bg-tonicol-amber/60 text-tonicol-dark text-xs uppercase font-extrabold border-b border-amber-200">
+            <tr class="bg-tonicol-amber/60 text-tonicol-dark uppercase font-extrabold border-b border-amber-200">
               <th class="p-3">Ruta</th>
               <th class="p-3">Nombre Comercial</th>
               <th class="p-3">Dirección & Colonia</th>
               <th class="p-3">Giro / Formato</th>
-              <th class="p-3">Contacto & Teléfono</th>
-              <th class="p-3 text-center">Días Visita</th>
               <th class="p-3 text-center">Acciones</th>
             </tr>
           </thead>
-          <tbody id="tablaClientesBody" class="divide-y divide-gray-100 text-xs sm:text-sm">
-          </tbody>
+          <tbody id="tablaClientesBody" class="divide-y divide-gray-100"></tbody>
         </table>
       </div>
-
-      <div id="estadoVacio" class="hidden p-8 text-center">
-        <i class="fas fa-folder-open text-4xl text-gray-300 mb-2"></i>
-        <p class="text-gray-500 font-semibold text-sm">No se encontraron clientes.</p>
-      </div>
     </section>
-
   </main>
 
-  <!-- Modal Captura / Edición -->
-  <div id="modalCliente" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-3 sm:p-4 backdrop-blur-sm overflow-y-auto">
-    <div class="bg-white rounded-3xl max-w-2xl w-full my-auto shadow-2xl border border-amber-200 overflow-hidden">
+  <!-- Modal Captura -->
+  <div id="modalCliente" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm">
+    <div class="bg-white rounded-3xl max-w-xl w-full p-6 shadow-2xl relative">
+      <h3 class="text-lg font-black mb-4 text-tonicol-red"><i class="fas fa-user-plus mr-2"></i>Captura de Cliente</h3>
+      <form id="formCliente" class="space-y-3">
+        <input type="text" id="campoNombreComercial" required placeholder="Nombre Comercial" class="w-full p-2 border rounded-xl text-xs">
+        <input type="text" id="campoDireccion" required placeholder="Dirección Completa" class="w-full p-2 border rounded-xl text-xs">
+        <div class="flex justify-end gap-2 pt-3">
+          <button type="button" onclick="cerrarModal()" class="px-4 py-2 border rounded-xl text-xs">Cancelar</button>
+          <button type="submit" class="bg-tonicol-red text-white font-bold px-4 py-2 rounded-xl text-xs">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Evento explícito para abrir modal
+      document.getElementById('btnNuevoCliente').addEventListener('click', abrirModal);
       
-      <div class="bg-tonicol-red text-white px-5 py-4 flex justify-between items-center">
-        <h3 id="modalTitulo" class="text-lg font-black tracking-wide flex items-center gap-2">
-          <i class="fas fa-user-plus text-tonicol-yellow"></i> Capturar Nuevo Cliente
-        </h3>
-        <button onclick="cerrarModalCliente()" class="text-white/80 hover:text-white text-xl">
-          <i class="fas fa-times"></i>
-        </button>
-      </div>
+      // Evento de clic en zona Drop
+      const dropZone = document.getElementById('dropZone');
+      const fileInput = document.getElementById('excelInput');
+      
+      dropZone.addEventListener('click', function() {
+        fileInput.click();
+      });
 
-      <form id="formCliente" onsubmit="guardarCliente(event)" class="p-5 space-y-4 max-h-[80vh] overflow-y-auto custom-scrollbar">
-        <input type="hidden" id="clienteId">
+      fileInput.addEventListener('change', procesarExcel);
 
-        <div id="alertaGPS" class="bg-blue-50 border-l-4 border-blue-500 p-3 rounded-r-xl flex items-center justify-between text-xs text-blue-800">
-          <div class="flex items-center space-x-2">
-            <i class="fas fa-satellite-dish animate-pulse text-blue-600 text-base"></i>
-            <span id="textoEstatusGPS">Obteniendo coordenadas GPS...</span>
-          </div>
-          <button type="button" onclick="obtenerUbicacionGPS()" class="bg-blue-600 text-white px-2 py-1 rounded font
+      // Drag and drop events
+      window.addEventListener('dragover', function(e) { e.preventDefault(); });
+      window.addEventListener('drop', function(e) {
+        e.preventDefault();
+        if (e.dataTransfer.files.length) {
+          fileInput.files = e.dataTransfer.files;
+          procesarExcel();
+        }
+      });
+    });
+
+    function abrirModal() {
+      document.getElementById('modalCliente').classList.remove('hidden');
+    }
+
+    function cerrarModal() {
+      document.getElementById('modalCliente').classList.add('hidden');
+    }
+
+    function procesarExcel() {
+      const file = document.getElementById('excelInput').files[0];
+      if (file) {
+        alert("Archivo seleccionado correctamente: " + file.name);
+      }
+    }
+
+    function exportarExcel() {
+      alert("Exportando datos a Excel...");
+    }
+  </script>
+</body>
+</html>
